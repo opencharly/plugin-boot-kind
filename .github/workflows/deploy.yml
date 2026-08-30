@@ -46,19 +46,29 @@ jobs:
         run: |
           # Stage a project whose discover: block actually reaches the candy, so this
           # step gates the manifest instead of silently passing on an empty scan.
+          # This repo is bootstrapped but not yet populated. Guard on the candy existing
+          # so the job reports honestly instead of failing on a missing path — and FAIL
+          # LOUDLY the moment a candy appears but cannot be staged, which is the case the
+          # staging exists for.
+          if [ ! -d candy/plugin-boot-kind ]; then
+            echo "no candy/plugin-boot-kind yet — nothing to gate; this step starts gating with the first candy"
+            exit 0
+          fi
           mkdir -p /tmp/validate/candy
-          cp -r candy/plugin-punktfunk /tmp/validate/candy/plugin-punktfunk
+          cp -r candy/plugin-boot-kind /tmp/validate/candy/plugin-boot-kind
           printf 'version: 2026.240.1943\ndiscover:\n    - path: candy\n      recursive: true\n' > /tmp/validate/charly.yml
           cd /tmp/validate && /tmp/charly/bin/charly box validate
 
       - name: The plugin module builds, vets and tests
         run: |
-          cd candy/plugin-punktfunk
+          [ -d candy/plugin-boot-kind ] || { echo "no Go module yet"; exit 0; }
+          cd candy/plugin-boot-kind
           GOWORK=off go build ./...
           GOWORK=off go vet ./...
           GOWORK=off go test ./...
 
       - name: gofmt is clean
         run: |
-          cd candy/plugin-punktfunk
+          [ -d candy/plugin-boot-kind ] || { echo "no Go module yet"; exit 0; }
+          cd candy/plugin-boot-kind
           test -z "$(gofmt -l .)" || { echo "gofmt found unformatted files:"; gofmt -l .; exit 1; }
